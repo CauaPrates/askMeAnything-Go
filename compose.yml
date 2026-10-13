@@ -1,22 +1,29 @@
 services:
   db:
-    image: postgres:latest
+    image: postgres:16
     restart: unless-stopped
     ports:
-      - ${WSRS_DATABASE_PORT:-5432}:5432
+      - 127.0.0.1:${WSRS_DATABASE_PORT:-5432}:5432
     environment:
       POSTGRES_USER: ${WSRS_DATABASE_USER}
       POSTGRES_PASSWORD: ${WSRS_DATABASE_PASSWORD}
       POSTGRES_DB: ${WSRS_DATABASE_NAME}
     volumes:
       - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    profiles: ["tools"]
     ports:
-      - 8082:80
+      - 127.0.0.1:8082:80
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: password

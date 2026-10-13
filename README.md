@@ -18,7 +18,7 @@ A API reúne criação de salas, envio de perguntas, contagem de reações e mar
 | Tecnologia | Aplicação |
 | --- | --- |
 | Go | Servidor HTTP e lógica da API |
-| Chi | Roteamento e middlewares de log, identificação de requisições e recuperação de panics |
+| Chi | Roteamento, identificação de requisições, CORS e recuperação de panics |
 | PostgreSQL | Persistência de salas e perguntas |
 | pgx | Conexão com o banco e pool de conexões |
 | sqlc | Geração de código Go tipado a partir de consultas SQL |
@@ -41,7 +41,7 @@ go mod download
 
 ### 2. Configurar o ambiente
 
-Crie ou configure o arquivo `.env` na raiz com os dados do seu PostgreSQL. Exemplo para desenvolvimento local:
+Use `.env.example` como referência para criar ou configurar o `.env` na raiz com os dados do seu PostgreSQL. Exemplo para desenvolvimento local:
 
 ```dotenv
 WSRS_DATABASE_HOST=localhost
@@ -49,6 +49,9 @@ WSRS_DATABASE_PORT=5432
 WSRS_DATABASE_NAME=ama
 WSRS_DATABASE_USER=ama
 WSRS_DATABASE_PASSWORD=ama_local
+WSRS_DATABASE_SSLMODE=disable
+WSRS_HTTP_ADDRESS=:8080
+WSRS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 ```
 
 | Variável | Finalidade |
@@ -58,24 +61,27 @@ WSRS_DATABASE_PASSWORD=ama_local
 | `WSRS_DATABASE_NAME` | Nome do banco de dados |
 | `WSRS_DATABASE_USER` | Usuário do banco |
 | `WSRS_DATABASE_PASSWORD` | Senha do banco |
+| `WSRS_DATABASE_SSLMODE` | Modo SSL do PostgreSQL; `disable` no exemplo local, `prefer` quando não definido |
+| `WSRS_HTTP_ADDRESS` | Endereço do servidor, padrão `:8080` |
+| `WSRS_ALLOWED_ORIGINS` | Origens permitidas para o frontend, separadas por vírgula |
 
 Os valores acima são exemplos locais. O servidor e a ferramenta de migração carregam o `.env` a partir do diretório em que são executados.
 
 ### 3. Iniciar o PostgreSQL
 
-Para usar os mesmos valores do exemplo:
+Com os valores definidos no `.env`:
 
 ```bash
-docker run --name ama-postgres -e POSTGRES_USER=ama -e POSTGRES_PASSWORD=ama_local -e POSTGRES_DB=ama -p 127.0.0.1:5432:5432 -v ama_postgres_data:/var/lib/postgresql/data -d postgres:16
+docker compose up -d --wait db
 ```
 
-Este exemplo usa PostgreSQL 16 e o volume correspondente ao [layout dessa versão da imagem oficial](https://hub.docker.com/_/postgres). Aguarde o banco aceitar conexões antes de aplicar as migrações:
+O Compose usa PostgreSQL 16, persistência em volume e verificação de saúde. O volume segue o [layout dessa versão da imagem oficial](https://hub.docker.com/_/postgres). Para iniciar também o pgAdmin:
 
 ```bash
-docker exec ama-postgres pg_isready -U ama -d ama
+docker compose --profile tools up -d --wait
 ```
 
-Para iniciar novamente o container em outra sessão, use `docker start ama-postgres`.
+O pgAdmin fica acessível em `http://localhost:8082`. As configurações desse serviço estão no `compose.yml`.
 
 ### 4. Aplicar as migrações
 
@@ -111,6 +117,7 @@ Base HTTP: `http://localhost:8080`.
 
 | Método | Rota | Operação |
 | --- | --- | --- |
+| `GET` | `/health` | Verificar se o processo HTTP está ativo |
 | `POST` | `/api/rooms/` | Criar sala |
 | `GET` | `/api/rooms/` | Listar salas |
 | `GET` | `/api/rooms/{room_id}/` | Consultar sala |
@@ -134,7 +141,7 @@ Envie um `POST /api/rooms/` com `Content-Type: application/json`:
 }
 ```
 
-A resposta contém o identificador criado:
+A resposta utiliza HTTP `201 Created` e contém o identificador criado:
 
 ```json
 {
@@ -152,9 +159,13 @@ Envie um `POST /api/rooms/{room_id}/messages/`, substituindo `{room_id}` pelo ID
 }
 ```
 
-A resposta também contém um campo `id`. O schema define até 255 caracteres para o tema da sala e até 25 caracteres para o texto da pergunta.
+A resposta utiliza HTTP `201 Created` e também contém um campo `id`. O schema define até 255 caracteres para o tema da sala e até 1000 caracteres para o texto da pergunta. Espaços nas extremidades são removidos antes de persistir; entradas vazias são rejeitadas.
 
 As operações de adicionar e remover reação retornam o contador atualizado no campo `count`.
+
+As consultas de mensagens usam o identificador da sala em conjunto com o identificador da pergunta. As listas de perguntas priorizam as não respondidas e ordenam por quantidade de reações. O contador possui uma restrição de banco para permanecer não negativo.
+
+Respostas de erro utilizam JSON no formato `{"error":"mensagem"}`. Identificadores malformados retornam `400`, recursos inexistentes retornam `404` e corpos sem `Content-Type: application/json` retornam `415`.
 
 ## Eventos em tempo real
 
@@ -198,7 +209,9 @@ askMeAnything-Go/
 ├── internal/
 │   ├── api/
 │   │   ├── api.go               # Rotas, handlers e eventos WebSocket
-│   │   └── untils.go            # Leitura de salas e respostas JSON
+│   │   ├── utils.go             # Validação e respostas JSON
+│   │   ├── websocket.go         # Assinaturas e ciclo de vida das conexões
+│   │   └── api_test.go          # Testes HTTP e de integração
 │   └── store/
 │       └── pgstore/
 │           ├── migrations/      # Schema e configuração do Tern
@@ -217,7 +230,7 @@ askMeAnything-Go/
 
 O servidor inicializa o pool de conexões e injeta as consultas do banco nos handlers HTTP. A camada `pgstore` utiliza código gerado pelo sqlc a partir das consultas e do schema SQL.
 
-O `compose.yml` também descreve serviços de PostgreSQL e pgAdmin, como alternativa de configuração do ambiente. O passo a passo acima usa um container PostgreSQL independente.
+O `compose.yml` descreve o ambiente local de PostgreSQL e o serviço opcional do pgAdmin.
 
 ## Ferramentas de desenvolvimento
 
@@ -227,11 +240,31 @@ O `compose.yml` também descreve serviços de PostgreSQL e pgAdmin, como alterna
 | `go run ./cmd/tools/terndotenv` | Aplicar migrações |
 | `go build ./...` | Compilar os pacotes |
 | `go vet ./...` | Executar análise estática |
+| `go test ./...` | Executar os testes; integração habilitada por `AMA_TEST_DATABASE_URL` |
 | `sqlc generate -f ./internal/store/pgstore/sqlc.yaml` | Gerar novamente o código das consultas |
 
 Para regenerar consultas, instale o [sqlc](https://docs.sqlc.dev/) e execute o comando na raiz. Os arquivos gerados registram a versão `1.27.0`.
 
 A coleção [Rooms do Postman](docs/Rooms.postman_collection.json) contém exemplos das operações HTTP. Importe-a e preencha os parâmetros de sala e pergunta com os IDs retornados pela API.
+
+## Testes com PostgreSQL
+
+Os testes HTTP de validação podem ser executados com `go test ./...`. Para habilitar os testes de persistência e WebSocket, defina `AMA_TEST_DATABASE_URL` com uma conexão a um PostgreSQL de teste. Exemplo em PowerShell:
+
+```powershell
+$env:AMA_TEST_DATABASE_URL = 'postgres://ama:ama_local@localhost:5432/ama?sslmode=disable'
+go test ./... -count=1
+```
+
+Cada teste de integração cria um schema isolado, aplica as migrações e remove esse schema ao concluir. A suíte verifica o fluxo de salas e perguntas, limites de entrada, isolamento entre salas, contadores não negativos, eventos e desconexão de clientes.
+
+## Integração com o frontend
+
+As salas são públicas e as operações funcionam sem cadastro. O contador de reações é anônimo; o frontend mantém a seleção de reação no próprio navegador. A marcação de perguntas respondidas também é uma operação pública.
+
+Configure `WSRS_ALLOWED_ORIGINS` com os endereços do frontend. As mesmas origens são usadas pelo CORS e pela validação das conexões WebSocket. O servidor usa ping/pong, limites de leitura e escrita e remove os assinantes desconectados; ao encerrar, fecha as conexões e aguarda as requisições HTTP.
+
+Para um banco já criado, execute novamente `go run ./cmd/tools/terndotenv`: a migração `003_improve_messages.sql` amplia as perguntas e acrescenta a restrição de reações sem apagar as salas.
 
 ## Projeto relacionado
 

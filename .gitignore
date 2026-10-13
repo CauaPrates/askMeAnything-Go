@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+*.exe
+*.test
+*.out
+coverage/
+graphify-out/
+.DS_Store
+.idea/
