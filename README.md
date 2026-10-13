@@ -1,37 +1,39 @@
-﻿# AMA — Ask Me Anything API
+# AMA — Ask Me Anything API
 
-Backend em **Go** para uma aplicação de perguntas e respostas em salas temáticas, com persistência em **PostgreSQL** e notificações em tempo real por **WebSocket**.
+**English** | [Português (Brasil)](README.pt-BR.md)
 
-A API reúne criação de salas, envio de perguntas, contagem de reações e marcação de perguntas respondidas. As mudanças são notificadas aos clientes conectados à sala correspondente.
+A **Go** backend for questions and answers in topic-based rooms, with **PostgreSQL** persistence and real-time notifications over **WebSocket**.
 
-## Funcionalidades
+The API supports room creation, question submission, reaction counts, and marking questions as answered. Changes are broadcast to clients connected to the corresponding room.
 
-- Criação, listagem e consulta de salas por identificador.
-- Envio, listagem e consulta de perguntas em uma sala.
-- Incremento e decremento do contador de reações de uma pergunta.
-- Marcação de perguntas como respondidas.
-- Assinatura de eventos por sala usando WebSocket.
-- Persistência com identificadores UUID e relacionamento entre salas e perguntas.
+## Features
 
-## Tecnologias
+- Create, list, and retrieve rooms by ID.
+- Submit, list, and retrieve questions within a room.
+- Increment and decrement a question's reaction count.
+- Mark questions as answered.
+- Subscribe to room events over WebSocket.
+- Persist data with UUID identifiers and relationships between rooms and questions.
 
-| Tecnologia | Aplicação |
+## Tech stack
+
+| Technology | Purpose |
 | --- | --- |
-| Go | Servidor HTTP e lógica da API |
-| Chi | Roteamento, identificação de requisições, CORS e recuperação de panics |
-| PostgreSQL | Persistência de salas e perguntas |
-| pgx | Conexão com o banco e pool de conexões |
-| sqlc | Geração de código Go tipado a partir de consultas SQL |
-| Gorilla WebSocket | Conexões e envio de eventos em tempo real |
-| Tern | Migrações do banco de dados |
-| godotenv | Carregamento da configuração pelo arquivo `.env` |
-| Docker | Ambiente local do banco de dados |
+| Go | HTTP server and API logic |
+| Chi | Routing, request identification, CORS, and panic recovery |
+| PostgreSQL | Room and question persistence |
+| pgx | Database access and connection pooling |
+| sqlc | Generating typed Go code from SQL queries |
+| Gorilla WebSocket | Real-time connections and event delivery |
+| Tern | Database migrations |
+| godotenv | Loading configuration from `.env` |
+| Docker | Local database environment |
 
-## Executar localmente
+## Running locally
 
-Pré-requisitos: Git, **Go 1.22.5 ou superior**, Docker em execução e [Tern](https://github.com/jackc/tern) disponível no `PATH`.
+Prerequisites: Git, **Go 1.22.5 or later**, Docker running, and [Tern](https://github.com/jackc/tern) available on your `PATH`.
 
-### 1. Clonar o repositório
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/CauaPrates/askMeAnything-Go.git
@@ -39,9 +41,9 @@ cd askMeAnything-Go
 go mod download
 ```
 
-### 2. Configurar o ambiente
+### 2. Configure the environment
 
-Use `.env.example` como referência para criar ou configurar o `.env` na raiz com os dados do seu PostgreSQL. Exemplo para desenvolvimento local:
+Use `.env.example` as a reference to create or configure `.env` at the repository root with your PostgreSQL settings. Example for local development:
 
 ```dotenv
 WSRS_DATABASE_HOST=localhost
@@ -54,58 +56,58 @@ WSRS_HTTP_ADDRESS=:8080
 WSRS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 ```
 
-| Variável | Finalidade |
+| Variable | Purpose |
 | --- | --- |
-| `WSRS_DATABASE_HOST` | Endereço do PostgreSQL |
-| `WSRS_DATABASE_PORT` | Porta de conexão com o banco |
-| `WSRS_DATABASE_NAME` | Nome do banco de dados |
-| `WSRS_DATABASE_USER` | Usuário do banco |
-| `WSRS_DATABASE_PASSWORD` | Senha do banco |
-| `WSRS_DATABASE_SSLMODE` | Modo SSL do PostgreSQL; `disable` no exemplo local, `prefer` quando não definido |
-| `WSRS_HTTP_ADDRESS` | Endereço do servidor, padrão `:8080` |
-| `WSRS_ALLOWED_ORIGINS` | Origens permitidas para o frontend, separadas por vírgula |
+| `WSRS_DATABASE_HOST` | PostgreSQL host |
+| `WSRS_DATABASE_PORT` | Database connection port |
+| `WSRS_DATABASE_NAME` | Database name |
+| `WSRS_DATABASE_USER` | Database user |
+| `WSRS_DATABASE_PASSWORD` | Database password |
+| `WSRS_DATABASE_SSLMODE` | PostgreSQL SSL mode; `disable` in the local example, `prefer` when unset |
+| `WSRS_HTTP_ADDRESS` | Server address; defaults to `:8080` |
+| `WSRS_ALLOWED_ORIGINS` | Comma-separated list of allowed frontend origins |
 
-Os valores acima são exemplos locais. O servidor e a ferramenta de migração carregam o `.env` a partir do diretório em que são executados.
+These values are local examples. The server and migration tool load `.env` from their working directory.
 
-### 3. Iniciar o PostgreSQL
+### 3. Start PostgreSQL
 
-Com os valores definidos no `.env`:
+With the values configured in `.env`:
 
 ```bash
 docker compose up -d --wait db
 ```
 
-O Compose usa PostgreSQL 16, persistência em volume e verificação de saúde. O volume segue o [layout dessa versão da imagem oficial](https://hub.docker.com/_/postgres). Para iniciar também o pgAdmin:
+Compose uses PostgreSQL 16, persistent storage, and a health check. The volume follows the [layout for this version of the official image](https://hub.docker.com/_/postgres). To also start pgAdmin:
 
 ```bash
 docker compose --profile tools up -d --wait
 ```
 
-O pgAdmin fica acessível em `http://localhost:8082`. As configurações desse serviço estão no `compose.yml`.
+pgAdmin is available at `http://localhost:8082`. Its service settings are defined in `compose.yml`.
 
-### 4. Aplicar as migrações
+### 4. Apply migrations
 
-Uma opção de instalação do Tern com versão definida:
+You can install a specific version of Tern with:
 
 ```bash
 go install github.com/jackc/tern/v2@v2.2.0
 ```
 
-Com o executável `tern` disponível no `PATH`, execute a ferramenta incluída no projeto:
+With the `tern` executable on your `PATH`, run the tool included in the project:
 
 ```bash
 go run ./cmd/tools/terndotenv
 ```
 
-Ela carrega as variáveis do `.env` e aplica as migrações de `internal/store/pgstore/migrations/` usando `tern.conf`.
+It loads the environment variables from `.env` and applies the migrations in `internal/store/pgstore/migrations/` using `tern.conf`.
 
-### 5. Iniciar a API
+### 5. Start the API
 
 ```bash
 go run ./cmd/wsrs
 ```
 
-A API atende em **http://localhost:8080**. Para consultar as salas:
+The API is available at **http://localhost:8080**. To list rooms:
 
 ```bash
 curl http://localhost:8080/api/rooms/
@@ -113,35 +115,35 @@ curl http://localhost:8080/api/rooms/
 
 ## Endpoints
 
-Base HTTP: `http://localhost:8080`.
+HTTP base URL: `http://localhost:8080`.
 
-| Método | Rota | Operação |
+| Method | Route | Operation |
 | --- | --- | --- |
-| `GET` | `/health` | Verificar se o processo HTTP está ativo |
-| `POST` | `/api/rooms/` | Criar sala |
-| `GET` | `/api/rooms/` | Listar salas |
-| `GET` | `/api/rooms/{room_id}/` | Consultar sala |
-| `POST` | `/api/rooms/{room_id}/messages/` | Enviar pergunta |
-| `GET` | `/api/rooms/{room_id}/messages/` | Listar perguntas da sala |
-| `GET` | `/api/rooms/{room_id}/messages/{message_id}/` | Consultar pergunta |
-| `PATCH` | `/api/rooms/{room_id}/messages/{message_id}/react` | Adicionar uma reação |
-| `DELETE` | `/api/rooms/{room_id}/messages/{message_id}/react` | Remover uma reação |
-| `PATCH` | `/api/rooms/{room_id}/messages/{message_id}/answer` | Marcar como respondida |
-| `GET` com upgrade WebSocket | `/subscribe/{room_id}` | Assinar eventos da sala |
+| `GET` | `/health` | Check whether the HTTP process is running |
+| `POST` | `/api/rooms/` | Create a room |
+| `GET` | `/api/rooms/` | List rooms |
+| `GET` | `/api/rooms/{room_id}/` | Retrieve a room |
+| `POST` | `/api/rooms/{room_id}/messages/` | Submit a question |
+| `GET` | `/api/rooms/{room_id}/messages/` | List room questions |
+| `GET` | `/api/rooms/{room_id}/messages/{message_id}/` | Retrieve a question |
+| `PATCH` | `/api/rooms/{room_id}/messages/{message_id}/react` | Add a reaction |
+| `DELETE` | `/api/rooms/{room_id}/messages/{message_id}/react` | Remove a reaction |
+| `PATCH` | `/api/rooms/{room_id}/messages/{message_id}/answer` | Mark a question as answered |
+| `GET` with WebSocket upgrade | `/subscribe/{room_id}` | Subscribe to room events |
 
-Os identificadores de salas e perguntas são UUIDs. No contrato da API, as perguntas são chamadas de `messages`.
+Room and question IDs are UUIDs. Questions are called `messages` in the API contract.
 
-### Criar uma sala
+### Create a room
 
-Envie um `POST /api/rooms/` com `Content-Type: application/json`:
+Send a `POST /api/rooms/` request with `Content-Type: application/json`:
 
 ```json
 {
-  "theme": "Perguntas sobre Go"
+  "theme": "Questions about Go"
 }
 ```
 
-A resposta utiliza HTTP `201 Created` e contém o identificador criado:
+The response uses HTTP `201 Created` and contains the new ID:
 
 ```json
 {
@@ -149,127 +151,129 @@ A resposta utiliza HTTP `201 Created` e contém o identificador criado:
 }
 ```
 
-### Enviar uma pergunta
+### Submit a question
 
-Envie um `POST /api/rooms/{room_id}/messages/`, substituindo `{room_id}` pelo ID retornado na criação:
+Send a `POST /api/rooms/{room_id}/messages/` request, replacing `{room_id}` with the ID returned when creating the room:
 
 ```json
 {
-  "message": "Como usar Go?"
+  "message": "How do I use Go?"
 }
 ```
 
-A resposta utiliza HTTP `201 Created` e também contém um campo `id`. O schema define até 255 caracteres para o tema da sala e até 1000 caracteres para o texto da pergunta. Espaços nas extremidades são removidos antes de persistir; entradas vazias são rejeitadas.
+The response uses HTTP `201 Created` and also contains an `id` field. The schema allows up to 255 characters for a room's theme and up to 1,000 characters for a question. Leading and trailing whitespace is removed before saving; empty input is rejected.
 
-As operações de adicionar e remover reação retornam o contador atualizado no campo `count`.
+Adding or removing a reaction returns the updated count in the `count` field.
 
-As consultas de mensagens usam o identificador da sala em conjunto com o identificador da pergunta. As listas de perguntas priorizam as não respondidas e ordenam por quantidade de reações. O contador possui uma restrição de banco para permanecer não negativo.
+Message queries use both the room ID and question ID. Question lists prioritize unanswered questions and sort by reaction count. A database constraint keeps the counter nonnegative.
 
-Respostas de erro utilizam JSON no formato `{"error":"mensagem"}`. Identificadores malformados retornam `400`, recursos inexistentes retornam `404` e corpos sem `Content-Type: application/json` retornam `415`.
+Error responses use a JSON object with an `error` field. Malformed IDs return `400`, missing resources return `404`, and request bodies without `Content-Type: application/json` return `415`.
 
-## Eventos em tempo real
+## Real-time events
 
-Conecte um cliente WebSocket ao endereço:
+Connect a WebSocket client to:
 
 ```text
 ws://localhost:8080/subscribe/{room_id}
 ```
 
-| Evento | Conteúdo de `value` |
+| Event | Contents of `value` |
 | --- | --- |
-| `message_created` | `id` e `message` da pergunta |
-| `message_reaction_increased` | `id` e `count` atualizado |
-| `message_reaction_decreased` | `id` e `count` atualizado |
-| `message_answered` | `id` da pergunta respondida |
+| `message_created` | The question's `id` and `message` |
+| `message_reaction_increased` | `id` and the updated `count` |
+| `message_reaction_decreased` | `id` and the updated `count` |
+| `message_answered` | The answered question's `id` |
 
-Exemplo de notificação:
+Example notification:
 
 ```json
 {
   "kind": "message_created",
   "value": {
     "id": "550e8400-e29b-41d4-a716-446655440001",
-    "message": "Como usar Go?"
+    "message": "How do I use Go?"
   }
 }
 ```
 
-As operações HTTP alteram os dados; o WebSocket distribui os eventos aos assinantes da sala. As assinaturas são mantidas em memória pelo processo da API.
+HTTP operations modify the data; WebSocket delivers events to room subscribers. Subscriptions are held in memory by the API process.
 
-## Estrutura do projeto
+## Project structure
 
 ```text
 askMeAnything-Go/
 ├── cmd/
 │   ├── wsrs/
-│   │   └── main.go              # Entrada do servidor
+│   │   └── main.go              # Server entry point
 │   └── tools/
 │       └── terndotenv/
-│           └── main.go          # Execução das migrações com .env
+│           └── main.go          # Running migrations with .env
 ├── internal/
 │   ├── api/
-│   │   ├── api.go               # Rotas, handlers e eventos WebSocket
-│   │   ├── utils.go             # Validação e respostas JSON
-│   │   ├── websocket.go         # Assinaturas e ciclo de vida das conexões
-│   │   └── api_test.go          # Testes HTTP e de integração
+│   │   ├── api.go               # Routes and HTTP handlers
+│   │   ├── utils.go             # Validation and JSON responses
+│   │   ├── websocket.go         # Subscriptions and connection lifecycle
+│   │   └── api_test.go          # HTTP and integration tests
 │   └── store/
 │       └── pgstore/
-│           ├── migrations/      # Schema e configuração do Tern
-│           ├── queries/         # Consultas SQL
-│           ├── sqlc.yaml        # Configuração da geração de código
+│           ├── migrations/      # Schema and Tern configuration
+│           ├── queries/         # SQL queries
+│           ├── sqlc.yaml        # Code generation configuration
 │           ├── db.go
 │           ├── models.go
 │           └── queries.sql.go
 ├── docs/
 │   └── Rooms.postman_collection.json
+├── README.md
+├── README.pt-BR.md
 ├── compose.yml
 ├── gen.go
 ├── go.mod
 └── go.sum
 ```
 
-O servidor inicializa o pool de conexões e injeta as consultas do banco nos handlers HTTP. A camada `pgstore` utiliza código gerado pelo sqlc a partir das consultas e do schema SQL.
+The server initializes the connection pool and injects database queries into the HTTP handlers. The `pgstore` layer uses code generated by sqlc from the SQL queries and schema.
 
-O `compose.yml` descreve o ambiente local de PostgreSQL e o serviço opcional do pgAdmin.
+The `compose.yml` file defines the local PostgreSQL environment and the optional pgAdmin service.
 
-## Ferramentas de desenvolvimento
+## Development tools
 
-| Comando | Finalidade |
+| Command | Purpose |
 | --- | --- |
-| `go run ./cmd/wsrs` | Executar a API |
-| `go run ./cmd/tools/terndotenv` | Aplicar migrações |
-| `go build ./...` | Compilar os pacotes |
-| `go vet ./...` | Executar análise estática |
-| `go test ./...` | Executar os testes; integração habilitada por `AMA_TEST_DATABASE_URL` |
-| `sqlc generate -f ./internal/store/pgstore/sqlc.yaml` | Gerar novamente o código das consultas |
+| `go run ./cmd/wsrs` | Run the API |
+| `go run ./cmd/tools/terndotenv` | Apply migrations |
+| `go build ./...` | Compile packages |
+| `go vet ./...` | Run static analysis |
+| `go test ./...` | Run tests; integration tests are enabled by `AMA_TEST_DATABASE_URL` |
+| `sqlc generate -f ./internal/store/pgstore/sqlc.yaml` | Regenerate query code |
 
-Para regenerar consultas, instale o [sqlc](https://docs.sqlc.dev/) e execute o comando na raiz. Os arquivos gerados registram a versão `1.27.0`.
+To regenerate queries, install [sqlc](https://docs.sqlc.dev/) and run the command from the repository root. The generated files record version `1.27.0`.
 
-A coleção [Rooms do Postman](docs/Rooms.postman_collection.json) contém exemplos das operações HTTP. Importe-a e preencha os parâmetros de sala e pergunta com os IDs retornados pela API.
+The [Rooms Postman collection](docs/Rooms.postman_collection.json) includes examples of HTTP operations. Import it and fill in the room and question parameters using IDs returned by the API.
 
-## Testes com PostgreSQL
+## PostgreSQL integration tests
 
-Os testes HTTP de validação podem ser executados com `go test ./...`. Para habilitar os testes de persistência e WebSocket, defina `AMA_TEST_DATABASE_URL` com uma conexão a um PostgreSQL de teste. Exemplo em PowerShell:
+Run HTTP validation tests with `go test ./...`. To enable persistence and WebSocket tests, set `AMA_TEST_DATABASE_URL` to a test PostgreSQL connection. Example in PowerShell:
 
 ```powershell
 $env:AMA_TEST_DATABASE_URL = 'postgres://ama:ama_local@localhost:5432/ama?sslmode=disable'
 go test ./... -count=1
 ```
 
-Cada teste de integração cria um schema isolado, aplica as migrações e remove esse schema ao concluir. A suíte verifica o fluxo de salas e perguntas, limites de entrada, isolamento entre salas, contadores não negativos, eventos e desconexão de clientes.
+Each integration test creates an isolated schema, applies migrations, and removes that schema when finished. The suite verifies room and question workflows, input limits, isolation between rooms, nonnegative counters, events, and client disconnection.
 
-## Integração com o frontend
+## Frontend integration
 
-As salas são públicas e as operações funcionam sem cadastro. O contador de reações é anônimo; o frontend mantém a seleção de reação no próprio navegador. A marcação de perguntas respondidas também é uma operação pública.
+Rooms are public, and operations work without registration. Reaction counts are anonymous; the frontend remembers reaction selections in the browser. Marking questions as answered is also a public operation.
 
-Configure `WSRS_ALLOWED_ORIGINS` com os endereços do frontend. As mesmas origens são usadas pelo CORS e pela validação das conexões WebSocket. O servidor usa ping/pong, limites de leitura e escrita e remove os assinantes desconectados; ao encerrar, fecha as conexões e aguarda as requisições HTTP.
+Set `WSRS_ALLOWED_ORIGINS` to the frontend addresses. The same origins are used for CORS and WebSocket validation. The server uses ping/pong, read and write limits, and removes disconnected subscribers; on shutdown, it closes connections and waits for HTTP requests.
 
-Para um banco já criado, execute novamente `go run ./cmd/tools/terndotenv`: a migração `003_improve_messages.sql` amplia as perguntas e acrescenta a restrição de reações sem apagar as salas.
+For an existing database, run `go run ./cmd/tools/terndotenv` again: migration `003_improve_messages.sql` increases the question length limit and adds the reaction constraint without deleting rooms.
 
-## Projeto relacionado
+## Related project
 
-O [AMA em React](https://github.com/CauaPrates/askMeAnything-React) reúne a interface web da mesma proposta de aplicação. Esta API fornece as operações de salas, perguntas e reações para o cliente web.
+[AMA in React](https://github.com/CauaPrates/askMeAnything-React) provides the web interface for the same application. This API supplies room, question, and reaction operations for the web client.
 
-## Autor
+## Author
 
-Desenvolvido por [Cauã Prates](https://github.com/CauaPrates).
+Developed by [Cauã Prates](https://github.com/CauaPrates).
